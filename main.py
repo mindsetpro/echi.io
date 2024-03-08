@@ -1,13 +1,10 @@
-### echi.io | main.py ###
-### echi.io © 2024 | Made by Mindset ###
-
 import discord
-from discord.ext import commands
+from discord.ext import commands, tasks
 import sqlite3
 import requests
 import random
 from PIL import Image
-
+import os
 
 # Initialize bot
 intents = discord.Intents.all()
@@ -54,7 +51,6 @@ def fetch_all_characters():
 
     return all_characters
 
-
 # Function to create embeds for character data
 def create_character_embed(character):
     embed = discord.Embed(title=character['name'], description=character['about'], color=random.randint(0, 0xFFFFFF))
@@ -66,7 +62,7 @@ def create_character_embed(character):
 # Command to fetch a random character and display as embed
 @bot.command()
 async def random_character(ctx):
-    character_data = fetch_character_data()
+    character_data = fetch_all_characters()
     if character_data:
         random_character = random.choice(character_data)
         embed = create_character_embed(random_character)
@@ -94,7 +90,7 @@ async def verify(ctx, code: str):
     else:
         await ctx.send("Verification failed.")
 
-# Command to drop 1 anime characters
+# Command to drop 1 anime character
 class ClaimCharacterView(discord.ui.View):
     def __init__(self, character):
         super().__init__()
@@ -106,7 +102,7 @@ class ClaimCharacterView(discord.ui.View):
 
 @bot.command()
 async def dr(ctx):
-    character_data = fetch_character_data()
+    character_data = fetch_all_characters()
     if character_data:
         # Assuming character data is a list of characters
         characters_to_drop = random.sample(character_data, 1)
@@ -116,7 +112,84 @@ async def dr(ctx):
             await ctx.send(embed=embed, view=view)
     else:
         await ctx.send("Failed to fetch character data.")
-      
+
+# Command to check if the user is verified
+async def is_verified(ctx):
+    c.execute("SELECT * FROM users WHERE user_id=?", (ctx.author.id,))
+    user = c.fetchone()
+    if user and user[3] is not None:
+        return True
+    else:
+        await ctx.send("You are not verified. Please use `e!sc` to get verified.")
+        return False
+
+# Command to get character details by ID
+@bot.command()
+async def c(ctx, char_id: int):
+    c.execute("SELECT * FROM characters WHERE id=?", (char_id,))
+    character = c.fetchone()
+    if character:
+        embed = discord.Embed(title=character[1], description=character[2], color=random.randint(0, 0xFFFFFF))
+        embed.set_image(url=character[3])
+        embed.add_field(name='Rarity', value=character[4], inline=True)
+        await ctx.send(embed=embed)
+    else:
+        await ctx.send("Character not found.")
+
+# Command to send the most recently received card's details
+@bot.command()
+async def v(ctx):
+    c.execute("SELECT * FROM characters ORDER BY id DESC LIMIT 1")
+    character = c.fetchone()
+    if character:
+        embed = discord.Embed(title=character[1], description=character[2], color=random.randint(0, 0xFFFFFF))
+        embed.set_image(url=character[3])
+        embed.add_field(name='Rarity', value=character[4], inline=True)
+        await ctx.send(embed=embed)
+    else:
+        await ctx.send("No character found.")
+
+# Command to list all characters with pagination
+@bot.command()
+async def co(ctx):
+    c.execute("SELECT * FROM characters")
+    characters = c.fetchall()
+    if characters:
+        characters_per_page = 10
+        pages = [characters[i:i+characters_per_page] for i in range(0, len(characters), characters_per_page)]
+        current_page = 0
+
+        async def show_page(page_num):
+            page = pages[page_num]
+            embed = discord.Embed(title="Character List", color=random.randint(0, 0xFFFFFF))
+            for character in page:
+                embed.add_field(name=character[1], value=f"ID: {character[0]}, Rarity: {character[4]}", inline=False)
+            embed.set_footer(text=f"Page {page_num+1}/{len(pages)}")
+            return embed
+
+        message = await ctx.send(embed=await show_page(current_page))
+
+        async def paginate(page_num):
+            await message.edit(embed=await show_page(page_num))
+
+        if len(pages) > 1:
+            for direction in ('\u2B05', '\u27A1'):
+                await message.add_reaction(direction)
+
+            def check(reaction, user):
+                return user == ctx.author and reaction.message == message and str(reaction.emoji) in ('\u2B05', '\u27A1')
+
+            while True:
+                reaction, user = await bot.wait_for('reaction_add', check=check)
+                if str(reaction.emoji) == '\u2B05':
+                    current_page = (current_page - 1) % len(pages)
+                elif str(reaction.emoji) == '\u27A1':
+                    current_page = (current_page + 1) % len(pages)
+                await reaction.remove(user)
+                await paginate(current_page)
+    else:
+        await ctx.send("No characters found.")
+
 # Event to detect alts
 @bot.event
 async def on_message(message):
@@ -143,13 +216,6 @@ token = os.environ.get('token')
 if token is None:
     print("Please set the 'token' environment variable.")
 else:
-    # Create a bot instance
-    bot = discord.Client()
-
-    @bot.event
-    async def on_ready():
-        print(f'We have logged in as {bot.user}')
-
     # Run the bot
     bot.run(token)
 
