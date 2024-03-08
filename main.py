@@ -1,9 +1,9 @@
-import discord
-from discord.ext import commands
-import sqlite3
-import requests
-import random
-from PIL import Image
+import discord                                 from PIL import Image
+from discord.ext import commands               import sqlite3
+import requests                                import random
+import os                                      import json
+
+
 
 # Initialize bot
 bot = commands.Bot(command_prefix='!')
@@ -119,8 +119,22 @@ async def on_message(message):
 
     await bot.process_commands(message)
 
-# Run the bot
-bot.run('MTIxNTQ2ODYwMjQyMjA2NzI3MQ.GavQEs.7HNmKh3YJjP-WaY0UcCH95KTj7WLcBY0oIEGjc')
+# Fetch the token from environment variables
+token = os.environ.get('token')
+
+# Check if the token is available
+if token is None:
+    print("Please set the 'token' environment variable.")
+else:
+    # Create a bot instance
+    bot = discord.Client()
+
+    @bot.event
+    async def on_ready():
+        print(f'We have logged in as {bot.user}')
+
+    # Run the bot
+    bot.run(token)
 
 # Close database connection
 conn.close()
