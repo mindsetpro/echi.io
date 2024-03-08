@@ -9,7 +9,7 @@ from PIL import Image
 bot = commands.Bot(command_prefix='!')
 
 # Jikan API base URL
-JIKAN_API_BASE_URL = "https://api.jikan.moe/v3"
+JIKAN_API_BASE_URL = "https://api.jikan.moe/v4"
 
 # Connect to SQLite database
 conn = sqlite3.connect('bot_database.db')
@@ -32,12 +32,21 @@ c.execute('''CREATE TABLE IF NOT EXISTS characters (
              )''')
 
 # Function to fetch anime character data from Jikan API
-def fetch_character_data():
-    response = requests.get(f"{JIKAN_API_BASE_URL}/character/1")
-    if response.status_code == 200:
-        return response.json()
-    else:
-        return None
+def fetch_all_characters():
+    all_characters = []
+
+    for page in range(1, 401):
+        response = requests.get(f"{JIKAN_API_BASE_URL}/characters/{page}")
+        if response.status_code == 200:
+            characters = response.json()['characters']
+            if not characters:
+                break  # No more characters to fetch
+            all_characters.extend(characters)
+        else:
+            return None
+
+    return all_characters
+
 
 # Function to create embeds for character data
 def create_character_embed(character):
@@ -94,7 +103,20 @@ async def drop_characters(ctx):
 # Event to detect alts
 @bot.event
 async def on_message(message):
-    # Implementation of alt detection
+    if message.author.bot:
+        return  # Ignore messages from bots
+
+    # Check if the user is in the database
+    c.execute("SELECT * FROM users WHERE user_id=?", (message.author.id,))
+    user = c.fetchone()
+    if user:
+        if user[2] is not None:
+            await message.author.send(f"Hello {message.author.name}, You have been detected as an alt of user {user[2]}. You are not allowed to use this bot.")
+            # Log the user in a separate database for users not allowed to use the bot
+            c.execute("INSERT INTO blacklisted_users (user_id) VALUES (?)", (message.author.id,))
+            conn.commit()
+            return  # Stop further processing of the message
+
     await bot.process_commands(message)
 
 # Run the bot
