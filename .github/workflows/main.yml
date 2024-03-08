@@ -23,10 +23,10 @@ jobs:
         pip install requests pillow discord
 
     - name: Set up Discord Bot Token
-      env:
-        DISCORD_TOKEN: ${{ secrets.token }}
+      run: |
+        echo "token=${{ secrets.token }}" >> $GITHUB_ENV
 
     - name: Run Bot Script
-      env:
-        DISCORD_TOKEN: ${{ secrets.DISCORD_TOKEN }}
       run: python main.py
+      env:
+        token: ${{ secrets.token }}
