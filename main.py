@@ -9,7 +9,10 @@ import os                                      import json
 
 
 # Initialize bot
-bot = commands.Bot(command_prefix='!')
+intents = discord.Intents.all()
+intents.members = True
+intents.guilds = True
+bot = commands.Bot(command_prefix='e!',intents=intents)
 
 # Jikan API base URL
 JIKAN_API_BASE_URL = "https://api.jikan.moe/v4"
@@ -82,7 +85,7 @@ async def verify(ctx):
 
 # Command to verify user using the code
 @bot.command()
-async def check_verify(ctx, code: str):
+async def verify(ctx, code: str):
     c.execute("SELECT * FROM users WHERE user_id=?", (ctx.author.id,))
     user = c.fetchone()
     if user and user[3] == code:
@@ -90,19 +93,29 @@ async def check_verify(ctx, code: str):
     else:
         await ctx.send("Verification failed.")
 
-# Command to drop 3 anime characters
+# Command to drop 1 anime characters
+class ClaimCharacterView(discord.ui.View):
+    def __init__(self, character):
+        super().__init__()
+        self.character = character
+
+    @discord.ui.button(label="Claim", style=discord.ButtonStyle.primary)
+    async def claim_button(self, button: discord.ui.Button, interaction: discord.Interaction):
+        await interaction.response.send_message(f"Claimed {self.character}!")
+
 @bot.command()
-async def drop_characters(ctx):
+async def dr(ctx):
     character_data = fetch_character_data()
     if character_data:
         # Assuming character data is a list of characters
-        characters_to_drop = random.sample(character_data, 3)
+        characters_to_drop = random.sample(character_data, 1)
         for character in characters_to_drop:
             embed = create_character_embed(character)
-            await ctx.send(embed=embed)
+            view = ClaimCharacterView(character)
+            await ctx.send(embed=embed, view=view)
     else:
         await ctx.send("Failed to fetch character data.")
-
+      
 # Event to detect alts
 @bot.event
 async def on_message(message):
