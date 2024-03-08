@@ -1,11 +1,12 @@
 ### echi.io | main.py ###
 ### echi.io © 2024 | Made by Mindset ###
 
-import discord                                 from PIL import Image
-from discord.ext import commands               import sqlite3
-import requests                                import random
-import os                                      import json
-
+import discord
+from discord.ext import commands
+import sqlite3
+import requests
+import random
+from PIL import Image
 
 
 # Initialize bot
