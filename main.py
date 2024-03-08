@@ -76,7 +76,7 @@ async def random_character(ctx):
 
 # Command to send verification code
 @bot.command()
-async def verify(ctx):
+async def sc(ctx):
     verification_code = ''.join(random.choices('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789', k=6))
     c.execute("INSERT INTO users (user_id, username, verification_code) VALUES (?, ?, ?)",
               (ctx.author.id, str(ctx.author), verification_code))
